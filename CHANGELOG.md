@@ -6,6 +6,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- The nREPL plugin no longer hangs the harness when an eval errors. A failed
+  eval used to be treated as a dead socket: `nrepl-eval` reconnected and
+  re-ran the *entire* eval on any error. For a timeout that doubled the wait
+  (a 3 s timeout took 6 s) and, when the server had gone away, turned the
+  retry into an unbounded clone handshake — a blocking socket read the Janet
+  interrupt cannot reach, which froze dirge until its own 30 s worker
+  deadline. Now only genuine transport failures (broken pipe / closed socket
+  / connection reset) trigger the reconnect-and-retry; a timeout drops the
+  connection instead (the timed-out eval keeps running server-side, so its
+  late reply would desync the next eval), and any other eval error just
+  propagates with the connection intact. The clone handshake is bounded by
+  `nrepl-connect-timeout` (10 s), so a server that accepts but never answers
+  fails fast instead of wedging.
+
 ## [0.25.6] - 2026-09-23
 
 ### Fixed
